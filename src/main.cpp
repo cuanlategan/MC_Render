@@ -17,10 +17,86 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "basic_shader.h"
+#include <GL/glu.h>
+
+#include "simple_image.hpp"
 
 // Clean up helper
 void clean_up(SDL_GLContext &, SDL_Window *);
+
+// http://www.nullterminator.net/gltexture.html
+// load a 256x256 RGB .RAW file as a texture
+GLuint LoadTextureRAW( const char * filename, int wrap )
+{
+  GLuint texture;
+  int width, height;
+  char * data;
+  FILE * file;
+
+  // open texture data
+  file = fopen( filename, "rb" );
+  if ( file == NULL ) return 0;
+
+  // allocate buffer
+  width = 256;
+  height = 256;
+  data = (char*)malloc( width * height * 3 );
+
+  // read texture data
+  fread( data, width * height * 3, 1, file );
+  fclose( file );
+
+  // allocate a texture name
+  glGenTextures( 1, &texture );
+
+  // select our current texture
+  glBindTexture( GL_TEXTURE_2D, texture );
+
+  
+  // when texture area is small, bilinear filter the closest MIP map
+  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                   GL_LINEAR_MIPMAP_NEAREST );
+  // when texture area is large, bilinear filter the first MIP map
+  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+
+  // if wrap is true, the texture wraps over at the edges (repeat)
+  //       ... false, the texture ends at the edges (clamp)
+  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                   wrap ? GL_REPEAT : GL_CLAMP_TO_EDGE );
+  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                   wrap ? GL_REPEAT : GL_CLAMP_TO_EDGE );
+
+  // build our texture MIP maps
+  gluBuild2DMipmaps( GL_TEXTURE_2D, 3, width,
+    height, GL_RGB, GL_UNSIGNED_BYTE, data );
+
+  // free buffer
+  free( data );
+
+  return texture;
+
+}
+
+/* A simple function that will read a file into an allocated char pointer buffer */
+char* filetobuf(char *file)
+{
+    FILE *fptr;
+    long length;
+    char *buf;
+
+    fptr = fopen(file, "rb"); /* Open file for reading */
+    if (!fptr) /* Return NULL on failure */
+        return NULL;
+    fseek(fptr, 0, SEEK_END); /* Seek to the end of the file */
+    length = ftell(fptr); /* Find out how many bytes into the file we are */
+    buf = (char*)malloc(length+1); /* Allocate a buffer for the entire length of the file and a null terminator */
+    fseek(fptr, 0, SEEK_SET); /* Go back to the beginning of the file */
+    fread(buf, length, 1, fptr); /* Read the contents of the file in to the buffer */
+    fclose(fptr); /* Close the file */
+    buf[length] = 0; /* Null terminator */
+
+    return buf; /* Return the buffer */
+}
 
 // helper to check and display for shader compiler errors
 bool check_shader_compile_status(GLuint obj) {
@@ -86,8 +162,7 @@ int main(int, char**)
     // Setup ImGui binding
     ImGui_ImplSdlGL3_Init(window);
 	  
-    bool show_test_window = true;
-    bool show_another_window = false;
+    
     ImVec4 clear_color = ImColor(114, 144, 154);
 
 	//------------------------------------------------------------------------------------------------
@@ -95,113 +170,190 @@ int main(int, char**)
 	//------------------------------------------------------------------------------------------------
 
 	// program and shader handles
-	GLuint shader_program, vertex_shader, geometry_shader, fragment_shader;
+	GLuint shader_program, vertex_shader, fragment_shader;
 
 	// we need these to properly pass the strings
 	const char *source;
-	int length;
 
+	printf("About to load shader\n");
 	// create and compiler vertex shader
 	vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	source = vertex_source.c_str();
-	length = vertex_source.size();
-	glShaderSource(vertex_shader, 1, &source, &length);
+	source = filetobuf("TransformVertexShader.vertexshader");
+	if(source == NULL) printf("Error loading vertex shader file: check path\n");
+	glShaderSource(vertex_shader, 1, &source, 0);
 	glCompileShader(vertex_shader);
 	if (!check_shader_compile_status(vertex_shader)) {
+		printf("vertex_shader bad compile status\n");
 		clean_up(glcontext, window);
 		return 1;
 	}
 
-	// create and compiler geometry shader
-	geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
-	source = geometry_source.c_str();
-	length = geometry_source.size();
-	glShaderSource(geometry_shader, 1, &source, &length );
-	glCompileShader(geometry_shader);
-	if (!check_shader_compile_status(geometry_shader)) {
-		clean_up(glcontext, window);
-		return 1;
-	}
 
+	printf("About to load shader\n");
 	// create and compiler fragment shader
 	fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	source = fragment_source.c_str();
-	length = fragment_source.size();
-	glShaderSource(fragment_shader, 1, &source, &length);
+	source =  filetobuf("TextureFragmentShader.fragmentshader");
+	if(source == NULL) printf("Error loading fragment shader file: check path\n");
+	glShaderSource(fragment_shader, 1, &source, 0);
 	glCompileShader(fragment_shader);
 	if (!check_shader_compile_status(fragment_shader)) {
+		printf("fragment_shader bad compile status\n");
 		clean_up(glcontext, window);
 		return 1;
 	}
 
+	printf("Creating shader_program\n");
 	// create program
 	shader_program = glCreateProgram();
 
 	// attach shaders
 	glAttachShader(shader_program, vertex_shader);
-	glAttachShader(shader_program, geometry_shader);
 	glAttachShader(shader_program, fragment_shader);
 
 	// link the program and check for errors
 	glLinkProgram(shader_program);
 	check_program_link_status(shader_program);
+	
 
-	//------------------------------------------------------------------------------------------------
-	//                                     Initialize Geometry/Material/Lights
-	//------------------------------------------------------------------------------------------------
+	// Enable depth test
+	glEnable(GL_DEPTH_TEST);
+	// Accept fragment if it closer to the camera than the former one
+	glDepthFunc(GL_LESS); 
 
-	// obtain location of projection uniform
-	GLint View_location = glGetUniformLocation(shader_program, "View");
-	GLint Projection_location = glGetUniformLocation(shader_program, "Projection");
+	GLuint VertexArrayID;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
+	
 
-	// vao and vbo handle
-	GLuint vao, vbo;
+	// Get a handle for our "MVP" uniform
+	GLuint mvpID = glGetUniformLocation(shader_program, "mvpID");
 
-	// generate and bind the vao
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
+	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+	// Camera matrix
+	glm::mat4 View       = glm::lookAt(
+								glm::vec3(4,3,3), // Camera is at (4,3,3), in World Space
+								glm::vec3(0,0,0), // and looks at the origin
+								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
+						   );
+	// Model matrix : an identity matrix (model will be at the origin)
+	glm::mat4 Model      = glm::mat4(1.0f);
+	// Our ModelViewProjection : multiplication of our 3 matrices
+	glm::mat4 MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
-	// generate and bind the vertex buffer object
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	// Load the texture 
+	//GLuint texture = LoadTextureRAW( "texture.raw", true );
+	GLuint textureID; 
+	Image tex_grass("uvtemplate.bmp");
+    glGenTextures(1, &textureID); // Generate texture ID
 
-	// create a galaxylike distribution of points
-	const int particles = 128 * 1024;
-	std::vector<GLfloat> vertexData(particles * 3);
-	for (int i = 0; i<particles; ++i)
-	{
-		int arm = 3 * (std::rand() / float(RAND_MAX));
-		float alpha = 1 / (0.1f + std::pow(std::rand() / float(RAND_MAX), 0.7f)) - 1 / 1.1f;
-		float r = 4.0f*alpha;
-		alpha += arm*2.0f*3.1416f / 3.0f;
+    glBindTexture(GL_TEXTURE_2D, textureID); // Bind it as a 2D texture
+    // Finnaly, actually fill the data into our texture
+    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, tex_grass.w, tex_grass.h, tex_grass.glFormat(), GL_UNSIGNED_BYTE,
+                      tex_grass.dataPointer());
 
-		vertexData[3 * i + 0] = r*std::sin(alpha);
-		vertexData[3 * i + 1] = 0;
-		vertexData[3 * i + 2] = r*std::cos(alpha);
+    //glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,tex_grass.w,tex_grass.h,0,GL_RGBA,GL_UNSIGNED_BYTE,tex_grass.dataPointer());
 
-		vertexData[3 * i + 0] += (4.0f - 0.2*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-		vertexData[3 * i + 1] += (2.0f - 0.1*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-		vertexData[3 * i + 2] += (4.0f - 0.2*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-	}
+    // Setup sampling strategies
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	// fill with data
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*vertexData.size(), &vertexData[0], GL_STATIC_DRAW);
+	// Get a handle for our "myTextureSampler" uniform
+	GLuint myTextureSampler  = glGetUniformLocation(shader_program, "myTextureSampler");
 
+	// Our vertices. Tree consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
+	// A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
+	static const GLfloat g_vertex_buffer_data[] = { 
+		-1.0f,-1.0f,-1.0f,
+		-1.0f,-1.0f, 1.0f,
+		-1.0f, 1.0f, 1.0f,
+		 1.0f, 1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+		-1.0f, 1.0f,-1.0f,
+		 1.0f,-1.0f, 1.0f,
+		-1.0f,-1.0f,-1.0f,
+		 1.0f,-1.0f,-1.0f,
+		 1.0f, 1.0f,-1.0f,
+		 1.0f,-1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+		-1.0f, 1.0f, 1.0f,
+		-1.0f, 1.0f,-1.0f,
+		 1.0f,-1.0f, 1.0f,
+		-1.0f,-1.0f, 1.0f,
+		-1.0f,-1.0f,-1.0f,
+		-1.0f, 1.0f, 1.0f,
+		-1.0f,-1.0f, 1.0f,
+		 1.0f,-1.0f, 1.0f,
+		 1.0f, 1.0f, 1.0f,
+		 1.0f,-1.0f,-1.0f,
+		 1.0f, 1.0f,-1.0f,
+		 1.0f,-1.0f,-1.0f,
+		 1.0f, 1.0f, 1.0f,
+		 1.0f,-1.0f, 1.0f,
+		 1.0f, 1.0f, 1.0f,
+		 1.0f, 1.0f,-1.0f,
+		-1.0f, 1.0f,-1.0f,
+		 1.0f, 1.0f, 1.0f,
+		-1.0f, 1.0f,-1.0f,
+		-1.0f, 1.0f, 1.0f,
+		 1.0f, 1.0f, 1.0f,
+		-1.0f, 1.0f, 1.0f,
+		 1.0f,-1.0f, 1.0f
+	};
 
-	// set up generic attrib pointers
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (char*)0 + 0 * sizeof(GLfloat));
+	// Two UV coordinatesfor each vertex. They were created with Blender.
+	static const GLfloat g_uv_buffer_data[] = { 
+		0.000059f, 1.0f-0.000004f, 
+		0.000103f, 1.0f-0.336048f, 
+		0.335973f, 1.0f-0.335903f, 
+		1.000023f, 1.0f-0.000013f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.999958f, 1.0f-0.336064f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.336024f, 1.0f-0.671877f, 
+		0.667969f, 1.0f-0.671889f, 
+		1.000023f, 1.0f-0.000013f, 
+		0.668104f, 1.0f-0.000013f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.000059f, 1.0f-0.000004f, 
+		0.335973f, 1.0f-0.335903f, 
+		0.336098f, 1.0f-0.000071f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.335973f, 1.0f-0.335903f, 
+		0.336024f, 1.0f-0.671877f, 
+		1.000004f, 1.0f-0.671847f, 
+		0.999958f, 1.0f-0.336064f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.668104f, 1.0f-0.000013f, 
+		0.335973f, 1.0f-0.335903f, 
+		0.667979f, 1.0f-0.335851f, 
+		0.335973f, 1.0f-0.335903f, 
+		0.668104f, 1.0f-0.000013f, 
+		0.336098f, 1.0f-0.000071f, 
+		0.000103f, 1.0f-0.336048f, 
+		0.000004f, 1.0f-0.671870f, 
+		0.336024f, 1.0f-0.671877f, 
+		0.000103f, 1.0f-0.336048f, 
+		0.336024f, 1.0f-0.671877f, 
+		0.335973f, 1.0f-0.335903f, 
+		0.667969f, 1.0f-0.671889f, 
+		1.000004f, 1.0f-0.671847f, 
+		0.667979f, 1.0f-0.335851f
+	};
 
-	// we are blending so no depth testing
-	glDisable(GL_DEPTH_TEST);
+	GLuint vertexbuffer;
+	glGenBuffers(1, &vertexbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-	// enable blending
-	glEnable(GL_BLEND);
-	//  and set the blend function to result = 1*source + 1*destination
-	glBlendFunc(GL_ONE, GL_ONE);
+	GLuint uvbuffer;
+	glGenBuffers(1, &uvbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+
 
     // Main loop
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -223,7 +375,6 @@ int main(int, char**)
 							
 				if (keys[SDL_SCANCODE_A]) {
 					std::cout << "A is being pressed\n";
-					show_another_window = !show_another_window;
 				}
 				if (keys[SDL_SCANCODE_B]) {
 					std::cout << "B is being pressed\n";
@@ -238,6 +389,57 @@ int main(int, char**)
 			}
 			
         }
+
+		// Inside loop to be fed from a slider
+		glClearColor(clear_color.x, clear_color.y, clear_color.z, 0.0f);
+
+		// Clear the screen
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// Use our shader
+		glUseProgram(shader_program);
+
+		// Send our transformation to the currently bound shader, 
+		// in the "MVP" uniform
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &MVP[0][0]);
+
+		// Bind our texture in Texture Unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		// Set our "myTextureSampler" sampler to user Texture Unit 0
+		glUniform1i(myTextureSampler, 0);
+
+		// 1rst attribute buffer : vertices
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		glVertexAttribPointer(
+			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+			3,                  // size
+			GL_FLOAT,           // type
+			GL_FALSE,           // normalized?
+			0,                  // stride
+			(void*)0            // array buffer offset
+		);
+
+		// 2nd attribute buffer : UVs
+		glEnableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+		glVertexAttribPointer(
+			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			2,                                // size : U+V => 2
+			GL_FLOAT,                         // type
+			GL_FALSE,                         // normalized?
+			0,                                // stride
+			(void*)0                          // array buffer offset
+		);
+
+		// Draw the triangle !
+		glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
+
+		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
+		//glUseProgram(0);
+
         ImGui_ImplSdlGL3_NewFrame(window);
 
         // 1. Show a simple window
@@ -247,58 +449,11 @@ int main(int, char**)
             ImGui::Text("Hello, world!");
             ImGui::SliderFloat("float", &speed, 0.0f, 1.0f);
             ImGui::ColorEdit3("clear color", (float*)&clear_color);
-            if (ImGui::Button("Test Window")) show_test_window ^= 1;
-            if (ImGui::Button("Another Window")) show_another_window ^= 1;
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         }
 
-        // 2. Show another simple window, this time using an explicit Begin/End pair
-        if (show_another_window)
-        {
-            ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
-            ImGui::Begin("Another Window", &show_another_window);
-            ImGui::Text("Hello");
-            ImGui::End();
-        }
-
-        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-        if (show_test_window)
-        {
-            ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-            ImGui::ShowTestWindow(&show_test_window);
-        }
-
-
-
-        // Rendering
-        glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        
-		// get the time in ticks
-		float t = SDL_GetTicks() / 1000.f;
-		t *= speed;
-		
-		// use the shader program
-		glUseProgram(shader_program);
-		// calculate ViewProjection matrix
-		glm::mat4 Projection = glm::perspective(90.0f, 4.0f / 3.0f, 0.1f, 100.f);
-		// translate the world/view position
-		glm::mat4 View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, zoom)); //-50.f
-		// make the camera rotate around the origin
-		View = glm::rotate(View, 30.0f*std::sin(0.1f*t), glm::vec3(1.0f, 0.0f, 0.0f));
-		View = glm::rotate(View, -22.5f*t, glm::vec3(0.0f, 1.0f, 0.0f));
-		// set the uniform
-		glUniformMatrix4fv(View_location, 1, GL_FALSE, glm::value_ptr(View));
-		glUniformMatrix4fv(Projection_location, 1, GL_FALSE, glm::value_ptr(Projection));
-		// bind the vao
-		glBindVertexArray(vao);
-		// draw
-		glDrawArrays(GL_POINTS, 0, particles);
-		
-		
-		
 		ImGui::Render();
+
         SDL_GL_SwapWindow(window);
     }
 

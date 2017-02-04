@@ -6,7 +6,7 @@
 # TODO list your header files (.hpp) here
 SET(headers
 	"imgui_impl.h"
-	"basic_shader.h"
+	"simple_image.hpp"
 )
 
 
@@ -26,3 +26,4 @@ target_link_libraries(${CGRA_PROJECT} PRIVATE imgui)
 
 target_link_libraries(${CGRA_PROJECT} PRIVATE SDL2)
 target_link_libraries(${CGRA_PROJECT} PRIVATE SDL2main)
+target_link_libraries(${CGRA_PROJECT} PRIVATE stb)
