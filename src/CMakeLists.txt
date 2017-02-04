@@ -7,6 +7,11 @@
 SET(headers
 	"imgui_impl.h"
 	"basic_shader.h"
+	"grass.h"
+	"wave_generator.h"
+	"cgra_math.hpp"
+	"simple_image.hpp"
+	"field.h"
 )
 
 
@@ -14,6 +19,8 @@ SET(headers
 SET(sources
 	"main.cpp"
 	"imgui_impl.cpp"
+	"grass.cpp" 
+	"field.cpp"
 )
 
 
@@ -26,3 +33,4 @@ target_link_libraries(${CGRA_PROJECT} PRIVATE imgui)
 
 target_link_libraries(${CGRA_PROJECT} PRIVATE SDL2)
 target_link_libraries(${CGRA_PROJECT} PRIVATE SDL2main)
+target_link_libraries(${CGRA_PROJECT} PRIVATE stb)

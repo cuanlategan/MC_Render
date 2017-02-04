@@ -36,6 +36,10 @@ find_package(OpenGL REQUIRED)
 include_directories("${PROJECT_SOURCE_DIR}/ext/SDL2")
 add_subdirectory(ext/SDL2) 
 
+#########################################################
+# Include STB Subproject
+#########################################################
+add_subdirectory(ext/stb)
 
 #########################################################
 # Include GLM (opengl math library)

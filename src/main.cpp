@@ -17,10 +17,44 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+// imports to trash
+#include "cuan_define.h"
+#include "wave_generator.h"
+#include "field.h"
 #include "basic_shader.h"
 
-// Clean up helper
+
+// Objects to be rendered
+WaveGenerator *g_wave_generator;
+Field *field = nullptr;
+
+// Flags
+bool draw_grass = true;
+
+// Forward declarations 
 void clean_up(SDL_GLContext &, SDL_Window *);
+
+/* A simple function that will read a file into an allocated char pointer buffer */
+// FROM: https://www.khronos.org/opengl/wiki/Tutorial2:_VAOs,_VBOs,_Vertex_and_Fragment_Shaders_(C_/_SDL)
+char* filetobuf(char *file)
+{
+    FILE *fptr;
+    long length;
+    char *buf;
+
+    fptr = fopen(file, "rb"); /* Open file for reading */
+    if (!fptr) /* Return NULL on failure */
+        return NULL;
+    fseek(fptr, 0, SEEK_END); /* Seek to the end of the file */
+    length = ftell(fptr); /* Find out how many bytes into the file we are */
+    buf = (char*)malloc(length+1); /* Allocate a buffer for the entire length of the file and a null terminator */
+    fseek(fptr, 0, SEEK_SET); /* Go back to the beginning of the file */
+    fread(buf, length, 1, fptr); /* Read the contents of the file in to the buffer */
+    fclose(fptr); /* Close the file */
+    buf[length] = 0; /* Null terminator */
+
+    return buf; /* Return the buffer */
+}
 
 // helper to check and display for shader compiler errors
 bool check_shader_compile_status(GLuint obj) {
@@ -94,57 +128,64 @@ int main(int, char**)
 	//                                     Shader Stuff
 	//------------------------------------------------------------------------------------------------
 
+    /* These pointers will receive the contents of our shader source code files */
+    GLchar *vertex_source, *fragment_source;
+
 	// program and shader handles
-	GLuint shader_program, vertex_shader, geometry_shader, fragment_shader;
+	GLuint shader_program, vertex_shader, fragment_shader;
 
 	// we need these to properly pass the strings
 	const char *source;
 	int length;
 
+    /* Read our shaders into the appropriate buffers */
+    vertex_source = filetobuf("./res/shaders/tutorial2.vert");
+    fragment_source = filetobuf("./res/shaders/tutorial2.frag");
+    if(vertex_source == NULL) printf("Error could not load vertex shader file\n");
+    if(fragment_source == NULL) printf("Error could not load fragment shader file\n");
+
 	// create and compiler vertex shader
 	vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-	source = vertex_source.c_str();
-	length = vertex_source.size();
-	glShaderSource(vertex_shader, 1, &source, &length);
+	source = vertex_source;
+	glShaderSource(vertex_shader, 1, &source, 0);
 	glCompileShader(vertex_shader);
-	if (!check_shader_compile_status(vertex_shader)) {
-		clean_up(glcontext, window);
-		return 1;
-	}
-
-	// create and compiler geometry shader
-	geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
-	source = geometry_source.c_str();
-	length = geometry_source.size();
-	glShaderSource(geometry_shader, 1, &source, &length );
-	glCompileShader(geometry_shader);
-	if (!check_shader_compile_status(geometry_shader)) {
+    if (!check_shader_compile_status(vertex_shader)) {
+        printf("Error compiling vertex shader\n");
 		clean_up(glcontext, window);
 		return 1;
 	}
 
 	// create and compiler fragment shader
 	fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	source = fragment_source.c_str();
-	length = fragment_source.size();
-	glShaderSource(fragment_shader, 1, &source, &length);
+	source = fragment_source;
+	glShaderSource(fragment_shader, 1, &source, 0);
 	glCompileShader(fragment_shader);
 	if (!check_shader_compile_status(fragment_shader)) {
-		clean_up(glcontext, window);
+		printf("Error compiling fragment shader\n");
+        clean_up(glcontext, window);
 		return 1;
 	}
 
 	// create program
+    printf("About to create shader program\n");
 	shader_program = glCreateProgram();
 
 	// attach shaders
 	glAttachShader(shader_program, vertex_shader);
-	glAttachShader(shader_program, geometry_shader);
 	glAttachShader(shader_program, fragment_shader);
 
 	// link the program and check for errors
 	glLinkProgram(shader_program);
 	check_program_link_status(shader_program);
+
+	// Build grass field 
+	g_wave_generator = new WaveGenerator();
+    g_wave_generator->addGerstnerWave(13.3, 0.5, 0.8, 1.5, glm::vec2(1.3f, 0.f));
+    g_wave_generator->addGerstnerWave(13.3*.77, 0.5*.77, 0.8*.77, 1.5, glm::vec2(1.3f*.77, 0.f));
+    g_wave_generator->addGerstnerWave(13.3*1.33, 0.5*1.33, 0.8*1.33, 1.5, glm::vec2(1.3f*1.33, 0.f));
+    field = new Field();
+    field->generateCluster(GRID_DIMENSION);
+    
 
 	//------------------------------------------------------------------------------------------------
 	//                                     Initialize Geometry/Material/Lights
@@ -154,54 +195,6 @@ int main(int, char**)
 	GLint View_location = glGetUniformLocation(shader_program, "View");
 	GLint Projection_location = glGetUniformLocation(shader_program, "Projection");
 
-	// vao and vbo handle
-	GLuint vao, vbo;
-
-	// generate and bind the vao
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	// generate and bind the vertex buffer object
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	// create a galaxylike distribution of points
-	const int particles = 128 * 1024;
-	std::vector<GLfloat> vertexData(particles * 3);
-	for (int i = 0; i<particles; ++i)
-	{
-		int arm = 3 * (std::rand() / float(RAND_MAX));
-		float alpha = 1 / (0.1f + std::pow(std::rand() / float(RAND_MAX), 0.7f)) - 1 / 1.1f;
-		float r = 4.0f*alpha;
-		alpha += arm*2.0f*3.1416f / 3.0f;
-
-		vertexData[3 * i + 0] = r*std::sin(alpha);
-		vertexData[3 * i + 1] = 0;
-		vertexData[3 * i + 2] = r*std::cos(alpha);
-
-		vertexData[3 * i + 0] += (4.0f - 0.2*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-		vertexData[3 * i + 1] += (2.0f - 0.1*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-		vertexData[3 * i + 2] += (4.0f - 0.2*alpha)*(2 - (std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX) +
-			std::rand() / float(RAND_MAX) + std::rand() / float(RAND_MAX)));
-	}
-
-	// fill with data
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*vertexData.size(), &vertexData[0], GL_STATIC_DRAW);
-
-
-	// set up generic attrib pointers
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (char*)0 + 0 * sizeof(GLfloat));
-
-	// we are blending so no depth testing
-	glDisable(GL_DEPTH_TEST);
-
-	// enable blending
-	glEnable(GL_BLEND);
-	//  and set the blend function to result = 1*source + 1*destination
-	glBlendFunc(GL_ONE, GL_ONE);
 
     // Main loop
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -252,49 +245,29 @@ int main(int, char**)
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         }
 
-        // 2. Show another simple window, this time using an explicit Begin/End pair
-        if (show_another_window)
-        {
-            ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
-            ImGui::Begin("Another Window", &show_another_window);
-            ImGui::Text("Hello");
-            ImGui::End();
-        }
-
-        // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-        if (show_test_window)
-        {
-            ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-            ImGui::ShowTestWindow(&show_test_window);
-        }
-
-
-
+      
         // Rendering
         glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         
-		// get the time in ticks
-		float t = SDL_GetTicks() / 1000.f;
-		t *= speed;
-		
+				
 		// use the shader program
 		glUseProgram(shader_program);
 		// calculate ViewProjection matrix
 		glm::mat4 Projection = glm::perspective(90.0f, 4.0f / 3.0f, 0.1f, 100.f);
 		// translate the world/view position
 		glm::mat4 View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, zoom)); //-50.f
-		// make the camera rotate around the origin
-		View = glm::rotate(View, 30.0f*std::sin(0.1f*t), glm::vec3(1.0f, 0.0f, 0.0f));
-		View = glm::rotate(View, -22.5f*t, glm::vec3(0.0f, 1.0f, 0.0f));
-		// set the uniform
-		glUniformMatrix4fv(View_location, 1, GL_FALSE, glm::value_ptr(View));
-		glUniformMatrix4fv(Projection_location, 1, GL_FALSE, glm::value_ptr(Projection));
-		// bind the vao
-		glBindVertexArray(vao);
-		// draw
-		glDrawArrays(GL_POINTS, 0, particles);
+		
+		// Set the current material (for all objects) to red
+        //glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+        //glColor3f(1.0f, 0.0f, 0.0f); //red
+        //glMaterialfv(GL_FRONT, GL_AMBIENT, mat_white_ground_ambient);
+        //glMaterialfv(GL_FRONT, GL_SPECULAR, mat_white_ground_specular);
+        //glMaterialfv(GL_FRONT, GL_SHININESS, mat_white_ground_shininess);
+        //glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_white_ground_diffuse);
+        field->renderFieldShader(g_wave_generator, 0.f, shader_program);
+		glUseProgram(0); // Will this mess up ImGUI??
 		
 		
 		

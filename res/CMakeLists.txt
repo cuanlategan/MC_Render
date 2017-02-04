@@ -2,7 +2,8 @@
 
 # TODO List your shader source files here
 SET(SHADERS
-	
+	"shaders/tutorial2.vert"
+	"shaders/tutorial2.frag"
 )
 
 add_custom_target(

@@ -4,7 +4,7 @@
 
 
 // the vertex shader simply passes through data
-std::string vertex_source =
+std::string vertex_sourceOLD =
 "#version 330\n"
 "layout(location = 0) in vec4 vposition;\n"
 "void main() {\n"
@@ -36,7 +36,7 @@ std::string geometry_source =
 "}\n";
 
 // the fragment shader creates a bell like radial color distribution    
-std::string fragment_source =
+std::string fragment_sourceOLD =
 "#version 330\n"
 "in vec2 txcoord;\n"
 "layout(location = 0) out vec4 FragColor;\n"
