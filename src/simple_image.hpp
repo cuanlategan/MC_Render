@@ -14,9 +14,9 @@
 
 #pragma once
 
-//#include "cgra_math.hpp"
-#include <GL/glu.h>
-#include <GL/gl3w.h> 
+
+//#include <GL/glu.h>
+//#include <GL/gl3w.h> 
 
 #include <stb_image.h>
 

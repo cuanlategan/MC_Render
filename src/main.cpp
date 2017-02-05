@@ -21,6 +21,45 @@
 
 #include "simple_image.hpp"
 
+// Projection values
+//
+float g_fovy = 60.0;
+float g_znear = 0.005;
+float g_zfar = 100.0;
+
+glm::vec3 g_camera_eye(0.f, 0.f, 0.f);
+
+// Mouse controlled Camera values
+//
+bool g_leftMouseDown = false;
+glm::vec2 g_mousePosition;
+float g_pitch = 0;
+float g_yaw = 0;
+float g_zoom = 1.0;
+
+glm::mat4 MVP;
+
+void setupCamera(){
+	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
+	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+	// Camera matrix
+	glm::mat4 View       = glm::lookAt(
+								glm::vec3(0,2,1.5), // Camera is at (0,2,1.5), in World Space
+								glm::vec3(0,0,0), // and looks at the origin
+								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
+						   );
+	// Model matrix : an identity matrix (model will be at the origin)
+	glm::mat4 Model      = glm::mat4(1.0f); 
+	Model = glm::rotate(Model, g_pitch, glm::vec3(1.0f, 0.0f, 0.0f));
+	Model = glm::rotate(Model, g_yaw, glm::vec3(0.f, 1.f, 0.f));
+	Model = glm::translate(Model, glm::vec3(-g_camera_eye.x, -g_camera_eye.y, -g_camera_eye.z));
+	
+	// Our ModelViewProjection : multiplication of our 3 matrices
+	MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
+
+	// View = glm::rotate(View, 30.0f*std::sin(0.1f*t), glm::vec3(1.0f, 0.0f, 0.0f));
+}
+
 // Clean up helper
 void clean_up(SDL_GLContext &, SDL_Window *);
 
@@ -107,7 +146,7 @@ bool check_shader_compile_status(GLuint obj) {
 		glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &length);
 		std::vector<char> log(length);
 		glGetShaderInfoLog(obj, length, &length, &log[0]);
-		std::cerr << &log[0];
+		std::cerr << "check_shader_compile_status error: "<< &log[0];
 		return false;
 	}
 	return true;
@@ -122,7 +161,7 @@ bool check_program_link_status(GLuint obj) {
 		glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &length);
 		std::vector<char> log(length);
 		glGetProgramInfoLog(obj, length, &length, &log[0]);
-		std::cerr << &log[0];
+		std::cerr << "check_program_link_status error: " << &log[0];
 		return false;
 	}
 	return true;
@@ -219,32 +258,22 @@ int main(int, char**)
 	glEnable(GL_DEPTH_TEST);
 	// Accept fragment if it closer to the camera than the former one
 	glDepthFunc(GL_LESS); 
-
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
 	
+
+
+
+
 
 	// Get a handle for our "MVP" uniform
 	GLuint mvpID = glGetUniformLocation(shader_program, "mvpID");
 
-	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-	// Camera matrix
-	glm::mat4 View       = glm::lookAt(
-								glm::vec3(4,3,3), // Camera is at (4,3,3), in World Space
-								glm::vec3(0,0,0), // and looks at the origin
-								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
-						   );
-	// Model matrix : an identity matrix (model will be at the origin)
-	glm::mat4 Model      = glm::mat4(1.0f);
-	// Our ModelViewProjection : multiplication of our 3 matrices
-	glm::mat4 MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
+	// initialise camera
+	setupCamera();
 
 	// Load the texture 
 	//GLuint texture = LoadTextureRAW( "texture.raw", true );
 	GLuint textureID; 
-	Image tex_grass("uvtemplate.bmp");
+	Image tex_grass("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/brick.jpg");
     glGenTextures(1, &textureID); // Generate texture ID
 
     glBindTexture(GL_TEXTURE_2D, textureID); // Bind it as a 2D texture
@@ -257,15 +286,47 @@ int main(int, char**)
     // Setup sampling strategies
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	// Get a handle for our "myTextureSampler" uniform
 	GLuint myTextureSampler  = glGetUniformLocation(shader_program, "myTextureSampler");
 
 	// Our vertices. Tree consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
 	// A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
+	/*glm::vec3 p(0.f, 0.f, 0.f);
+	float height = 0.015f;
+    float half_width = 0.0075f;
+    float r_half_width = 0.005303f;
+	*/
 	static const GLfloat g_vertex_buffer_data[] = { 
+	/*half_width+p.x, 0.f+p.y, height+p.z,
+    -half_width+p.x, 0.f+p.y, height+p.z,
+    half_width+p.x, 0.f+p.y, 0.f+p.z,
+    //bottom face
+    -half_width+p.x, 0.f+p.y, 0.f+p.z,
+    half_width+p.x, 0.f+p.y, 0.f+p.z,
+    -half_width+p.x, 0.f+p.y, height+p.z,
+	
+	// blade 2
+    r_half_width+p.x, -r_half_width+p.y, height+p.z,
+    -r_half_width+p.x, r_half_width+p.y, height+p.z,
+    r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
+	//bottom face
+    -r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
+    r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
+    -r_half_width+p.x, r_half_width+p.y, height+p.z,
+
+	// blade 3
+    r_half_width+p.x, r_half_width+p.y, height+p.z,
+    -r_half_width+p.x, -r_half_width+p.y, height+p.z,
+    r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
+	 //bottom face
+	-r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
+	r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
+	-r_half_width+p.x, -r_half_width+p.y, height+p.z
+	*/
+	
 		-1.0f,-1.0f,-1.0f,
 		-1.0f,-1.0f, 1.0f,
 		-1.0f, 1.0f, 1.0f,
@@ -302,10 +363,38 @@ int main(int, char**)
 		 1.0f, 1.0f, 1.0f,
 		-1.0f, 1.0f, 1.0f,
 		 1.0f,-1.0f, 1.0f
+
 	};
 
 	// Two UV coordinatesfor each vertex. They were created with Blender.
 	static const GLfloat g_uv_buffer_data[] = { 
+		/*
+		1.f,0.f,
+    	0.f,0.f,
+    	1.f,1.f,
+		//bottom face
+    	0.f,1.f,
+    	1.f,1.f,
+    	0.f,0.f,
+		// blade 2
+    	1.f,0.f,
+    	0.f,0.f,
+    	1.f,1.f,
+		//bottom face
+    	0.f,1.f,
+    	1.f,1.f,
+    	0.f,0.f,
+    	// blade 3
+    	1.f,0.f,
+    	0.f,0.f,
+    	1.f,1.f,
+    	//bottom face
+    	0.f,1.f,
+    	1.f,1.f,
+    	0.f,0.f
+		*/
+
+		
 		0.000059f, 1.0f-0.000004f, 
 		0.000103f, 1.0f-0.336048f, 
 		0.335973f, 1.0f-0.335903f, 
@@ -342,77 +431,19 @@ int main(int, char**)
 		0.667969f, 1.0f-0.671889f, 
 		1.000004f, 1.0f-0.671847f, 
 		0.667979f, 1.0f-0.335851f
-	};
-
-	GLuint vertexbuffer;
-	glGenBuffers(1, &vertexbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
-	GLuint uvbuffer;
-	glGenBuffers(1, &uvbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
-
-
-    // Main loop
-	const Uint8 *keys = SDL_GetKeyboardState(NULL);
-    bool done = false;
-	GLfloat zoom = -50.f;
-    while (!done)
-    {
 		
+	};
+	GLuint vaoID;
+	glGenVertexArrays(1, &vaoID);
+	glBindVertexArray(vaoID);
 
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            ImGui_ImplSdlGL3_ProcessEvent(&event);
-			if (event.type == SDL_QUIT) {
-				done = true;
-			}
-            
-			if (event.type == SDL_KEYDOWN) {
-							
-				if (keys[SDL_SCANCODE_A]) {
-					std::cout << "A is being pressed\n";
-				}
-				if (keys[SDL_SCANCODE_B]) {
-					std::cout << "B is being pressed\n";
-				}
-				if (keys[SDL_SCANCODE_W]) {
-					zoom += 1.f;
-				}
-				if (keys[SDL_SCANCODE_S]) {
-					zoom -= 1.f;
-				}
-			
-			}
-			
-        }
-
-		// Inside loop to be fed from a slider
-		glClearColor(clear_color.x, clear_color.y, clear_color.z, 0.0f);
-
-		// Clear the screen
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// Use our shader
-		glUseProgram(shader_program);
-
-		// Send our transformation to the currently bound shader, 
-		// in the "MVP" uniform
-		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &MVP[0][0]);
-
-		// Bind our texture in Texture Unit 0
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		// Set our "myTextureSampler" sampler to user Texture Unit 0
-		glUniform1i(myTextureSampler, 0);
-
-		// 1rst attribute buffer : vertices
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		glVertexAttribPointer(
+	// 1rst attribute buffer : vertices
+	GLuint vboVertexID;
+	glGenBuffers(1, &vboVertexID);
+	glBindBuffer(GL_ARRAY_BUFFER, vboVertexID);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(
 			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
 			3,                  // size
 			GL_FLOAT,           // type
@@ -421,24 +452,139 @@ int main(int, char**)
 			(void*)0            // array buffer offset
 		);
 
-		// 2nd attribute buffer : UVs
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-		glVertexAttribPointer(
-			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-			2,                                // size : U+V => 2
-			GL_FLOAT,                         // type
-			GL_FALSE,                         // normalized?
-			0,                                // stride
-			(void*)0                          // array buffer offset
-		);
+	// 2nd attribute buffer : UVs
+	GLuint vboUVbufferID;
+	glGenBuffers(1, &vboUVbufferID);
+	glBindBuffer(GL_ARRAY_BUFFER, vboUVbufferID);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(
+		1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+		2,                                // size : U+V => 2
+		GL_FLOAT,                         // type
+		GL_FALSE,                         // normalized?
+		0,                                // stride
+		(void*)0                          // array buffer offset
+	);
+	
+	//glDisableVertexAttribArray(0);
+	//glDisableVertexAttribArray(1);
+	
+	glBindVertexArray(0);
+	glUseProgram(0);
+
+    // Main loop
+	const Uint8 *keys = SDL_GetKeyboardState(NULL);
+    bool done = false;
+	GLfloat zoom = -50.f;
+    while (!done)
+    {
+		
+		setupCamera();
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            ImGui_ImplSdlGL3_ProcessEvent(&event);
+			if (event.type == SDL_QUIT) {
+				done = true;
+				break;
+			}
+            
+			else if (event.type == SDL_KEYDOWN) {
+				float const scale = 0.5f;			
+				if (keys[SDL_SCANCODE_A]) {
+					g_camera_eye.x -= cos(g_yaw) * scale;
+        			g_camera_eye.z -= sin(g_yaw) * scale;
+					break;
+				}
+				if (keys[SDL_SCANCODE_B]) {
+					std::cout << "B is being pressed\n";
+					break;
+				}
+				if (keys[SDL_SCANCODE_D]) {
+					g_camera_eye.x += float(cos(g_yaw)) * scale;
+        			g_camera_eye.z += float(sin(g_yaw)) * scale;
+					break;
+				}
+				if (keys[SDL_SCANCODE_W]) {
+					g_camera_eye.x += sin(g_yaw) * scale;
+        			g_camera_eye.z -= cos(g_yaw) * scale;
+        			g_camera_eye.y -= sin(g_pitch) * scale;
+					break;
+				}
+				if (keys[SDL_SCANCODE_S]) {
+					g_camera_eye.x -= sin(g_yaw) * scale;
+        			g_camera_eye.z += cos(g_yaw) * scale;
+        			g_camera_eye.y += sin(g_pitch) * scale;
+					break;
+				}
+			}
+			
+			else if (event.type == SDL_MOUSEBUTTONDOWN){
+				if(event.button.button == SDL_BUTTON_LEFT){
+					//SDL_ShowSimpleMessageBox(0, "Mouse", "Left button was pressed!", window);	
+					break;
+				}
+				
+			}
+		
+			
+        }
+		/*
+		SDL_Event eventTO;
+		while(SDL_WaitEventTimeout(&eventTO, 32)){
+			if (eventTO.type == SDL_MOUSEMOTION){
+				int diffX = g_mousePosition.x - eventTO.motion.x;
+    			int diffY = g_mousePosition.y - eventTO.motion.y;
+
+				g_yaw -= ( diffX)*0.01f;
+        		g_pitch -= ( diffY)*0.01f; 
+
+				g_mousePosition = glm::vec2(eventTO.motion.x, eventTO.motion.y);
+
+				//std::cout << "mouseX: " << mouseX
+				//		  <<  " MouseY: " << mouseY << "\n";
+				break;
+			}
+		}
+		*/
+
+		// Inside loop to be fed from a slider
+		glClearColor(clear_color.x, clear_color.y, clear_color.z, 0.0f);
+
+		// Clear the screen
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		
+		// Use our shader
+		glUseProgram(shader_program);
+		//glEnableVertexAttribArray(0);
+		//glEnableVertexAttribArray(1);
+
+		// Send our transformation to the currently bound shader, 
+		// in the "MVP" uniform
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &MVP[0][0]);
+
+		// Bind our texture in Texture Unit 0
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		
+		// Set our "myTextureSampler" sampler to user Texture Unit 0
+		glUniform1i(myTextureSampler, 0);
+		
+	
+		//glEnableVertexAttribArray(0);
+		//glEnableVertexAttribArray(1);
+		glBindVertexArray(vaoID);
+		
 
 		// Draw the triangle !
 		glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
 
-		glDisableVertexAttribArray(0);
-		glDisableVertexAttribArray(1);
-		//glUseProgram(0);
+		//glDisableVertexAttribArray(0);
+		//glDisableVertexAttribArray(1);
+		glUseProgram(0);
 
         ImGui_ImplSdlGL3_NewFrame(window);
 
