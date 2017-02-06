@@ -7,6 +7,11 @@
 SET(headers
 	"imgui_impl.h"
 	"simple_image.hpp"
+	"util.hpp"
+	"grass.h"
+	"field.h"
+	"wave_generator.h"
+
 )
 
 
@@ -14,6 +19,9 @@ SET(headers
 SET(sources
 	"main.cpp"
 	"imgui_impl.cpp"
+	"grass.cpp"
+	"field.cpp"
+	
 )
 
 

@@ -19,7 +19,9 @@
 
 #include <GL/glu.h>
 
+#include "util.hpp"
 #include "simple_image.hpp"
+#include "field.h"
 
 // Projection values
 //
@@ -39,12 +41,17 @@ float g_zoom = 1.0;
 
 glm::mat4 MVP;
 
+WaveGenerator *g_wave_generator;
+
+void clean_up(SDL_GLContext& glcontext, SDL_Window* window);
+
 void setupCamera(){
 	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+	//1280, 720
+	glm::mat4 Projection = glm::perspective(glm::radians(60.0f), 1280.f/720.f, 0.1f, 100.0f);
 	// Camera matrix
 	glm::mat4 View       = glm::lookAt(
-								glm::vec3(0,2,1.5), // Camera is at (0,2,1.5), in World Space
+								glm::vec3(0,2,1), // Camera is at (0,2,1.5), in World Space
 								glm::vec3(0,0,0), // and looks at the origin
 								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
 						   );
@@ -53,118 +60,13 @@ void setupCamera(){
 	Model = glm::rotate(Model, g_pitch, glm::vec3(1.0f, 0.0f, 0.0f));
 	Model = glm::rotate(Model, g_yaw, glm::vec3(0.f, 1.f, 0.f));
 	Model = glm::translate(Model, glm::vec3(-g_camera_eye.x, -g_camera_eye.y, -g_camera_eye.z));
+	Model = glm::rotate(Model, 90.f, glm::vec3(1.f, 0.f, 0.f));
+	
 	
 	// Our ModelViewProjection : multiplication of our 3 matrices
 	MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
 	// View = glm::rotate(View, 30.0f*std::sin(0.1f*t), glm::vec3(1.0f, 0.0f, 0.0f));
-}
-
-// Clean up helper
-void clean_up(SDL_GLContext &, SDL_Window *);
-
-// http://www.nullterminator.net/gltexture.html
-// load a 256x256 RGB .RAW file as a texture
-GLuint LoadTextureRAW( const char * filename, int wrap )
-{
-  GLuint texture;
-  int width, height;
-  char * data;
-  FILE * file;
-
-  // open texture data
-  file = fopen( filename, "rb" );
-  if ( file == NULL ) return 0;
-
-  // allocate buffer
-  width = 256;
-  height = 256;
-  data = (char*)malloc( width * height * 3 );
-
-  // read texture data
-  fread( data, width * height * 3, 1, file );
-  fclose( file );
-
-  // allocate a texture name
-  glGenTextures( 1, &texture );
-
-  // select our current texture
-  glBindTexture( GL_TEXTURE_2D, texture );
-
-  
-  // when texture area is small, bilinear filter the closest MIP map
-  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                   GL_LINEAR_MIPMAP_NEAREST );
-  // when texture area is large, bilinear filter the first MIP map
-  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-
-  // if wrap is true, the texture wraps over at the edges (repeat)
-  //       ... false, the texture ends at the edges (clamp)
-  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-                   wrap ? GL_REPEAT : GL_CLAMP_TO_EDGE );
-  glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
-                   wrap ? GL_REPEAT : GL_CLAMP_TO_EDGE );
-
-  // build our texture MIP maps
-  gluBuild2DMipmaps( GL_TEXTURE_2D, 3, width,
-    height, GL_RGB, GL_UNSIGNED_BYTE, data );
-
-  // free buffer
-  free( data );
-
-  return texture;
-
-}
-
-/* A simple function that will read a file into an allocated char pointer buffer */
-char* filetobuf(char *file)
-{
-    FILE *fptr;
-    long length;
-    char *buf;
-
-    fptr = fopen(file, "rb"); /* Open file for reading */
-    if (!fptr) /* Return NULL on failure */
-        return NULL;
-    fseek(fptr, 0, SEEK_END); /* Seek to the end of the file */
-    length = ftell(fptr); /* Find out how many bytes into the file we are */
-    buf = (char*)malloc(length+1); /* Allocate a buffer for the entire length of the file and a null terminator */
-    fseek(fptr, 0, SEEK_SET); /* Go back to the beginning of the file */
-    fread(buf, length, 1, fptr); /* Read the contents of the file in to the buffer */
-    fclose(fptr); /* Close the file */
-    buf[length] = 0; /* Null terminator */
-
-    return buf; /* Return the buffer */
-}
-
-// helper to check and display for shader compiler errors
-bool check_shader_compile_status(GLuint obj) {
-	GLint status;
-	glGetShaderiv(obj, GL_COMPILE_STATUS, &status);
-	if (status == GL_FALSE) {
-		GLint length;
-		glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &length);
-		std::vector<char> log(length);
-		glGetShaderInfoLog(obj, length, &length, &log[0]);
-		std::cerr << "check_shader_compile_status error: "<< &log[0];
-		return false;
-	}
-	return true;
-}
-
-// helper to check and display for shader linker error
-bool check_program_link_status(GLuint obj) {
-	GLint status;
-	glGetProgramiv(obj, GL_LINK_STATUS, &status);
-	if (status == GL_FALSE) {
-		GLint length;
-		glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &length);
-		std::vector<char> log(length);
-		glGetProgramInfoLog(obj, length, &length, &log[0]);
-		std::cerr << "check_program_link_status error: " << &log[0];
-		return false;
-	}
-	return true;
 }
 
 
@@ -261,9 +163,6 @@ int main(int, char**)
 	
 
 
-
-
-
 	// Get a handle for our "MVP" uniform
 	GLuint mvpID = glGetUniformLocation(shader_program, "mvpID");
 
@@ -273,7 +172,7 @@ int main(int, char**)
 	// Load the texture 
 	//GLuint texture = LoadTextureRAW( "texture.raw", true );
 	GLuint textureID; 
-	Image tex_grass("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/brick.jpg");
+	Image tex_grass("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/tall-grass.png");
     glGenTextures(1, &textureID); // Generate texture ID
 
     glBindTexture(GL_TEXTURE_2D, textureID); // Bind it as a 2D texture
@@ -294,145 +193,15 @@ int main(int, char**)
 
 	// Our vertices. Tree consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
 	// A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
-	/*glm::vec3 p(0.f, 0.f, 0.f);
-	float height = 0.015f;
-    float half_width = 0.0075f;
-    float r_half_width = 0.005303f;
-	*/
-	static const GLfloat g_vertex_buffer_data[] = { 
-	/*half_width+p.x, 0.f+p.y, height+p.z,
-    -half_width+p.x, 0.f+p.y, height+p.z,
-    half_width+p.x, 0.f+p.y, 0.f+p.z,
-    //bottom face
-    -half_width+p.x, 0.f+p.y, 0.f+p.z,
-    half_width+p.x, 0.f+p.y, 0.f+p.z,
-    -half_width+p.x, 0.f+p.y, height+p.z,
 	
-	// blade 2
-    r_half_width+p.x, -r_half_width+p.y, height+p.z,
-    -r_half_width+p.x, r_half_width+p.y, height+p.z,
-    r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
-	//bottom face
-    -r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
-    r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
-    -r_half_width+p.x, r_half_width+p.y, height+p.z,
-
-	// blade 3
-    r_half_width+p.x, r_half_width+p.y, height+p.z,
-    -r_half_width+p.x, -r_half_width+p.y, height+p.z,
-    r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
-	 //bottom face
-	-r_half_width+p.x, -r_half_width+p.y, 0.f+p.z,
-	r_half_width+p.x, r_half_width+p.y, 0.f+p.z,
-	-r_half_width+p.x, -r_half_width+p.y, height+p.z
-	*/
+	//=======================================================
 	
-		-1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		-1.0f,-1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f,-1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f
+    Field *field = new Field();
+    field->generateCluster(GRID_DIMENSION);
+    
+	//=======================================================
 
-	};
 
-	// Two UV coordinatesfor each vertex. They were created with Blender.
-	static const GLfloat g_uv_buffer_data[] = { 
-		/*
-		1.f,0.f,
-    	0.f,0.f,
-    	1.f,1.f,
-		//bottom face
-    	0.f,1.f,
-    	1.f,1.f,
-    	0.f,0.f,
-		// blade 2
-    	1.f,0.f,
-    	0.f,0.f,
-    	1.f,1.f,
-		//bottom face
-    	0.f,1.f,
-    	1.f,1.f,
-    	0.f,0.f,
-    	// blade 3
-    	1.f,0.f,
-    	0.f,0.f,
-    	1.f,1.f,
-    	//bottom face
-    	0.f,1.f,
-    	1.f,1.f,
-    	0.f,0.f
-		*/
-
-		
-		0.000059f, 1.0f-0.000004f, 
-		0.000103f, 1.0f-0.336048f, 
-		0.335973f, 1.0f-0.335903f, 
-		1.000023f, 1.0f-0.000013f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.999958f, 1.0f-0.336064f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.336024f, 1.0f-0.671877f, 
-		0.667969f, 1.0f-0.671889f, 
-		1.000023f, 1.0f-0.000013f, 
-		0.668104f, 1.0f-0.000013f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.000059f, 1.0f-0.000004f, 
-		0.335973f, 1.0f-0.335903f, 
-		0.336098f, 1.0f-0.000071f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.335973f, 1.0f-0.335903f, 
-		0.336024f, 1.0f-0.671877f, 
-		1.000004f, 1.0f-0.671847f, 
-		0.999958f, 1.0f-0.336064f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.668104f, 1.0f-0.000013f, 
-		0.335973f, 1.0f-0.335903f, 
-		0.667979f, 1.0f-0.335851f, 
-		0.335973f, 1.0f-0.335903f, 
-		0.668104f, 1.0f-0.000013f, 
-		0.336098f, 1.0f-0.000071f, 
-		0.000103f, 1.0f-0.336048f, 
-		0.000004f, 1.0f-0.671870f, 
-		0.336024f, 1.0f-0.671877f, 
-		0.000103f, 1.0f-0.336048f, 
-		0.336024f, 1.0f-0.671877f, 
-		0.335973f, 1.0f-0.335903f, 
-		0.667969f, 1.0f-0.671889f, 
-		1.000004f, 1.0f-0.671847f, 
-		0.667979f, 1.0f-0.335851f
-		
-	};
 	GLuint vaoID;
 	glGenVertexArrays(1, &vaoID);
 	glBindVertexArray(vaoID);
@@ -441,7 +210,10 @@ int main(int, char**)
 	GLuint vboVertexID;
 	glGenBuffers(1, &vboVertexID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboVertexID);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 
+					field->m_points->size() * sizeof(float) * 3,
+					field->m_points->data(), GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
@@ -456,7 +228,11 @@ int main(int, char**)
 	GLuint vboUVbufferID;
 	glGenBuffers(1, &vboUVbufferID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboUVbufferID);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER,
+					field->m_normals->size() * sizeof(float) * 3,
+					field->m_normals->data(),
+					GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
 		1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -473,6 +249,11 @@ int main(int, char**)
 	glBindVertexArray(0);
 	glUseProgram(0);
 
+
+
+
+
+
     // Main loop
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
     bool done = false;
@@ -488,67 +269,61 @@ int main(int, char**)
             ImGui_ImplSdlGL3_ProcessEvent(&event);
 			if (event.type == SDL_QUIT) {
 				done = true;
-				break;
 			}
             
 			else if (event.type == SDL_KEYDOWN) {
-				float const scale = 0.5f;			
+				float const scale = 0.08f;			
 				if (keys[SDL_SCANCODE_A]) {
 					g_camera_eye.x -= cos(g_yaw) * scale;
         			g_camera_eye.z -= sin(g_yaw) * scale;
-					break;
+				
 				}
-				if (keys[SDL_SCANCODE_B]) {
+				else if (keys[SDL_SCANCODE_B]) {
 					std::cout << "B is being pressed\n";
-					break;
+				
 				}
-				if (keys[SDL_SCANCODE_D]) {
+				else if (keys[SDL_SCANCODE_D]) {
 					g_camera_eye.x += float(cos(g_yaw)) * scale;
         			g_camera_eye.z += float(sin(g_yaw)) * scale;
-					break;
+				
 				}
-				if (keys[SDL_SCANCODE_W]) {
+				else if (keys[SDL_SCANCODE_W]) {
 					g_camera_eye.x += sin(g_yaw) * scale;
         			g_camera_eye.z -= cos(g_yaw) * scale;
         			g_camera_eye.y -= sin(g_pitch) * scale;
-					break;
+				
 				}
-				if (keys[SDL_SCANCODE_S]) {
+				else if (keys[SDL_SCANCODE_S]) {
 					g_camera_eye.x -= sin(g_yaw) * scale;
         			g_camera_eye.z += cos(g_yaw) * scale;
         			g_camera_eye.y += sin(g_pitch) * scale;
-					break;
+				
 				}
 			}
 			
 			else if (event.type == SDL_MOUSEBUTTONDOWN){
 				if(event.button.button == SDL_BUTTON_LEFT){
-					//SDL_ShowSimpleMessageBox(0, "Mouse", "Left button was pressed!", window);	
-					break;
+					g_leftMouseDown = true;
 				}
-				
+			}
+			else if (event.type == SDL_MOUSEBUTTONUP){
+				if(event.button.button == SDL_BUTTON_LEFT){
+					g_leftMouseDown = false;
+				}
+			}
+			else if(event.type == SDL_MOUSEMOTION){
+				if(g_leftMouseDown){
+					int diffX = g_mousePosition.x - event.motion.x;
+    				int diffY = g_mousePosition.y - event.motion.y;
+					g_yaw -= ( diffX)*0.002f;
+        			g_pitch -= ( diffY)*0.002f; 
+				}			
+				g_mousePosition = glm::vec2(event.motion.x, event.motion.y);
 			}
 		
 			
         }
-		/*
-		SDL_Event eventTO;
-		while(SDL_WaitEventTimeout(&eventTO, 32)){
-			if (eventTO.type == SDL_MOUSEMOTION){
-				int diffX = g_mousePosition.x - eventTO.motion.x;
-    			int diffY = g_mousePosition.y - eventTO.motion.y;
 
-				g_yaw -= ( diffX)*0.01f;
-        		g_pitch -= ( diffY)*0.01f; 
-
-				g_mousePosition = glm::vec2(eventTO.motion.x, eventTO.motion.y);
-
-				//std::cout << "mouseX: " << mouseX
-				//		  <<  " MouseY: " << mouseY << "\n";
-				break;
-			}
-		}
-		*/
 
 		// Inside loop to be fed from a slider
 		glClearColor(clear_color.x, clear_color.y, clear_color.z, 0.0f);
@@ -580,7 +355,9 @@ int main(int, char**)
 		
 
 		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
+		//glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
+		glDrawArrays(GL_TRIANGLES, 0, field->m_points->size());
+		
 
 		//glDisableVertexAttribArray(0);
 		//glDisableVertexAttribArray(1);
