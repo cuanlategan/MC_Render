@@ -17,7 +17,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/euler_angles.hpp>
+
 #include <GL/glu.h>
+
 
 #include "util.hpp"
 #include "simple_image.hpp"
@@ -30,6 +34,8 @@ float g_znear = 0.005;
 float g_zfar = 100.0;
 
 glm::vec3 g_camera_eye(0.f, 0.f, 0.f);
+glm::vec3 direction(0.f,0.f,0.f);
+glm::vec3 right(0.f,0.f,0.f);
 
 // Mouse controlled Camera values
 //
@@ -46,27 +52,83 @@ WaveGenerator *g_wave_generator;
 void clean_up(SDL_GLContext& glcontext, SDL_Window* window);
 
 void setupCamera(){
+	
+	using namespace glm;
+	 //https://github.com/opengl-tutorials/ogl/blob/master/tutorial06_keyboard_and_mouse/tutorial06.cpp
+	// Direction : Spherical coordinates to Cartesian coordinates conversion
+	direction = vec3(
+		cos(g_pitch) * sin(g_yaw), 
+		sin(g_pitch),
+		cos(g_pitch) * cos(g_yaw)
+	); 
+
+	// Right vector
+	right = glm::vec3(
+		sin(g_yaw - 3.14f/2.0f), 
+		0,
+		cos(g_yaw - 3.14f/2.0f)
+	);
+
+	glm::vec3 up = glm::cross( right, direction );
+	
+	//https://github.com/opengl-tutorials/ogl/blob/master/common/controls.cpp
 	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-	//1280, 720
 	glm::mat4 Projection = glm::perspective(glm::radians(60.0f), 1280.f/720.f, 0.1f, 100.0f);
 	// Camera matrix
 	glm::mat4 View       = glm::lookAt(
-								glm::vec3(0,2,1), // Camera is at (0,2,1.5), in World Space
-								glm::vec3(0,0,0), // and looks at the origin
-								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
+								g_camera_eye, // Camera is at (0,2,1.5), in World Space
+								g_camera_eye+direction, // and looks at the origin
+								//glm::vec3(0,0,0), // and looks at the origin
+								up  // Head is up (set to 0,-1,0 to look upside-down)
 						   );
 	// Model matrix : an identity matrix (model will be at the origin)
 	glm::mat4 Model      = glm::mat4(1.0f); 
-	Model = glm::rotate(Model, g_pitch, glm::vec3(1.0f, 0.0f, 0.0f));
-	Model = glm::rotate(Model, g_yaw, glm::vec3(0.f, 1.f, 0.f));
-	Model = glm::translate(Model, glm::vec3(-g_camera_eye.x, -g_camera_eye.y, -g_camera_eye.z));
-	Model = glm::rotate(Model, 90.f, glm::vec3(1.f, 0.f, 0.f));
-	
+	//Model = glm::rotate(Model, g_pitch, glm::vec3(1.0f, 0.0f, 0.0f));
+	//Model = glm::rotate(Model, g_yaw, glm::vec3(0.f, 1.f, 0.f));
+	//Model = glm::translate(Model, glm::vec3(-g_camera_eye.x, -g_camera_eye.y, -g_camera_eye.z));
+	//Model = glm::rotate(Model, 90.f, glm::vec3(1.f, 0.f, 0.f));
 	
 	// Our ModelViewProjection : multiplication of our 3 matrices
 	MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
+	
+//=====================================================================================================================
+	/*
+	glm::mat4 Projection = glm::perspective(glm::radians(60.0f), 1280.f/720.f, 0.1f, 100.0f);
+    
+	// If the pitch and yaw angles are in degrees,
+    // they need to be converted to radians. Here
+    // I assume the values are already converted to radians.
+	float cosPitch = cos(radians(g_pitch));
+	float sinPitch = sin(radians(g_pitch));
+	float cosYaw = cos(radians(g_yaw));
+	float sinYaw = sin(radians(g_yaw));
 
-	// View = glm::rotate(View, 30.0f*std::sin(0.1f*t), glm::vec3(1.0f, 0.0f, 0.0f));
+    vec3 xaxis( cosYaw, 0, -sinYaw );
+    vec3 yaxis( sinYaw * sinPitch, cosPitch, cosYaw * sinPitch );
+    vec3 zaxis( sinYaw * cosPitch, -sinPitch, cosYaw * cosPitch );
+
+    // Create a 4x4 view matrix from the right, up, forward and eye position vectors
+    mat4 viewMatrix(
+        vec4(       xaxis.x,            yaxis.x,            zaxis.x,      0 ),
+        vec4(       xaxis.y,            yaxis.y,            zaxis.y,      0 ),
+        vec4(       xaxis.z,            yaxis.z,            zaxis.z,      0 ),
+        vec4( -dot( xaxis, g_camera_eye ), -dot( yaxis, g_camera_eye ), -dot( zaxis, g_camera_eye ), 1 )
+        );
+
+    //return viewMatrix;
+
+    mat4 rotX = eulerAngleX(radians(g_pitch) );
+    mat4 rotY = eulerAngleY(radians(g_yaw));
+    //mat4 rotation = rotY * rotX;
+    mat4 rotation = eulerAngleYX( radians(g_yaw), radians(g_pitch) );
+	mat4 translation = translate(mat4(1.f), g_camera_eye);
+	mat4 View = inverse( translation * rotation );
+
+	glm::mat4 Model      = glm::mat4(1.0f);
+	//Model = glm::rotate(Model, 90.f, glm::vec3(1.f, 0.f, 0.f));
+
+	MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
+	*/
 }
 
 
@@ -210,10 +272,11 @@ int main(int, char**)
 	GLuint vboVertexID;
 	glGenBuffers(1, &vboVertexID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboVertexID);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER, 
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	/*glBufferData(GL_ARRAY_BUFFER, 
 					field->m_points->size() * sizeof(float) * 3,
 					field->m_points->data(), GL_DYNAMIC_DRAW);
+	*/
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
@@ -228,11 +291,12 @@ int main(int, char**)
 	GLuint vboUVbufferID;
 	glGenBuffers(1, &vboUVbufferID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboUVbufferID);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER,
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+	/*glBufferData(GL_ARRAY_BUFFER,
 					field->m_normals->size() * sizeof(float) * 3,
 					field->m_normals->data(),
 					GL_DYNAMIC_DRAW);
+	*/				
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
 		1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -274,29 +338,37 @@ int main(int, char**)
 			else if (event.type == SDL_KEYDOWN) {
 				float const scale = 0.08f;			
 				if (keys[SDL_SCANCODE_A]) {
-					g_camera_eye.x -= cos(g_yaw) * scale;
-        			g_camera_eye.z -= sin(g_yaw) * scale;
-				
+					g_camera_eye -= right *scale;
+					//g_camera_eye.x -= cos(g_yaw) * scale;
+        			//g_camera_eye.z -= sin(g_yaw) * scale;
+					
+					
+					
 				}
 				else if (keys[SDL_SCANCODE_B]) {
 					std::cout << "B is being pressed\n";
 				
 				}
 				else if (keys[SDL_SCANCODE_D]) {
-					g_camera_eye.x += float(cos(g_yaw)) * scale;
-        			g_camera_eye.z += float(sin(g_yaw)) * scale;
+					g_camera_eye += right *scale;
+					//g_camera_eye.x += float(cos(g_yaw)) * scale;
+        			//g_camera_eye.z += float(sin(g_yaw)) * scale;
+					
 				
 				}
 				else if (keys[SDL_SCANCODE_W]) {
-					g_camera_eye.x += sin(g_yaw) * scale;
-        			g_camera_eye.z -= cos(g_yaw) * scale;
-        			g_camera_eye.y -= sin(g_pitch) * scale;
-				
+					g_camera_eye += direction *scale;
+					//g_camera_eye.x += sin(g_yaw) * scale;
+        			//g_camera_eye.z -= cos(g_yaw) * scale;
+        			//g_camera_eye.y -= sin(g_pitch) * scale;
+					
 				}
 				else if (keys[SDL_SCANCODE_S]) {
-					g_camera_eye.x -= sin(g_yaw) * scale;
-        			g_camera_eye.z += cos(g_yaw) * scale;
-        			g_camera_eye.y += sin(g_pitch) * scale;
+					g_camera_eye -= direction *scale;
+					//g_camera_eye.x -= sin(g_yaw) * scale;
+        			//g_camera_eye.z += cos(g_yaw) * scale;
+        			//g_camera_eye.y += sin(g_pitch) * scale;
+					
 				
 				}
 			}
@@ -315,8 +387,8 @@ int main(int, char**)
 				if(g_leftMouseDown){
 					int diffX = g_mousePosition.x - event.motion.x;
     				int diffY = g_mousePosition.y - event.motion.y;
-					g_yaw -= ( diffX)*0.002f;
-        			g_pitch -= ( diffY)*0.002f; 
+					g_yaw    += diffX *.05f;
+        			g_pitch  += diffY *.05f;
 				}			
 				g_mousePosition = glm::vec2(event.motion.x, event.motion.y);
 			}

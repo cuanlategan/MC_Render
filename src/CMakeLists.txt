@@ -11,6 +11,7 @@ SET(headers
 	"grass.h"
 	"field.h"
 	"wave_generator.h"
+	#"Camera.hpp"
 
 )
 
@@ -21,6 +22,8 @@ SET(sources
 	"imgui_impl.cpp"
 	"grass.cpp"
 	"field.cpp"
+	#"Camera.cpp"
+	
 	
 )
 
