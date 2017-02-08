@@ -1,6 +1,4 @@
-
-
-#include <SDL2/SDL.h> 
+#include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -9,15 +7,15 @@
 
 using namespace glm;
 
-enum Dir {FORWARDS, BACKWARDS, UP, DOWN, LEFT, RIGHT};
+//enum Dir {FORWARDS, BACKWARDS, UP, DOWN, LEFT, RIGHT};
 
 glm::mat4 ViewMatrix;
 glm::mat4 ProjectionMatrix;
 
-glm::mat4 getViewMatrix(){
+glm::mat4 Camera::getViewMatrix(){
 	return ViewMatrix;
 }
-glm::mat4 getProjectionMatrix(){
+glm::mat4 Camera::getProjectionMatrix(){
 	return ProjectionMatrix;
 }
 
@@ -29,52 +27,39 @@ float horizontalAngle = 3.14f;
 // Initial vertical angle : none
 float verticalAngle = 0.0f;
 // Initial Field of View
-float initialFoV = 45.0f;
+float initialFoV = 60.0f;
 
-float speed = 3.0f; // 3 units / second
+float speed = 0.005f; // 0.005 units / second
 float mouseSpeed = 0.005f;
+glm::vec2 mousePosition;
 
-void move(Dir d){
-    switch(d){
-        case FORWARDS:
-            position += direction * deltaTime * speed;
-            break;
-        case BACKWARDS:
-            position -= direction * deltaTime * speed;
-            break;
-        case UP:
-            break;
-        case DOWN:
-            break;
-        case LEFT:
-        	position += right * deltaTime * speed;
-            break;
-        case RIGHT:
-        	position += right * deltaTime * speed;
-            break;
-        
-    }
-}
 
-void computeMatricesFromInputs(){
+
+void Camera::computeMatricesFromInputs(){
+	// This is called when events are polled
+	SDL_PumpEvents();
 
 	// glfwGetTime is called only once, the first time this function is called
 	static int lastTime = SDL_GetTicks();
 
 	// Compute time difference between current and last frame
 	int currentTime = SDL_GetTicks();
-	double deltaTime = double(currentTime - lastTime);
+	float deltaTime = float(currentTime - lastTime);
 
 	// Get mouse position
-	double xpos, ypos;
-	glfwGetCursorPos(window, &xpos, &ypos);
+	int xpos, ypos;
+	if (SDL_GetMouseState(&xpos, &ypos) & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+		int diffX = mousePosition.x - xpos;
+		int diffY = mousePosition.y - ypos;
+		horizontalAngle    += diffX *.005f;
+		verticalAngle  += diffY *.005f;
+	}
+	mousePosition = glm::vec2(xpos, ypos);
+
 
 	// Reset mouse position for next frame
-	glfwSetCursorPos(window, 1024/2, 768/2);
+	//glfwSetCursorPos(window, 1024/2, 768/2);
 
-	// Compute new orientation
-	horizontalAngle += mouseSpeed * float(1024/2 - xpos );
-	verticalAngle   += mouseSpeed * float( 768/2 - ypos );
 
 	// Direction : Spherical coordinates to Cartesian coordinates conversion
 	glm::vec3 direction(
@@ -93,24 +78,26 @@ void computeMatricesFromInputs(){
 	// Up vector
 	glm::vec3 up = glm::cross( right, direction );
 
-	/*
+
+	const Uint8 *state = SDL_GetKeyboardState(NULL);
+
     // Move forward
-	if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS){
+	if (state[SDL_SCANCODE_W]){
 		position += direction * deltaTime * speed;
 	}
 	// Move backward
-	if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS){
+	if (state[SDL_SCANCODE_S]){
 		position -= direction * deltaTime * speed;
 	}
 	// Strafe right
-	if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS){
+	if (state[SDL_SCANCODE_D]){
 		position += right * deltaTime * speed;
 	}
 	// Strafe left
-	if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS){
+	if (state[SDL_SCANCODE_A]){
 		position -= right * deltaTime * speed;
 	}
-    */
+
 	float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 
 	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
