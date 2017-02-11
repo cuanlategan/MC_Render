@@ -29,15 +29,15 @@ Field::Field(int num_clusters): Field() {
 void Field::addPatch(float x, float y, float z){
 
     const float height = 0.8f;
-    const float h_width = 0.3f;
+    const float half_width = 0.3f;
 
     vector<vec3> blade_vert(6);
-    blade_vert.push_back(vec3( -h_width, 0.f,    0.f ));
-    blade_vert.push_back(vec3(  h_width, 0.f,    0.f ));
-    blade_vert.push_back(vec3(  h_width, height, 0.f ));
-    blade_vert.push_back(vec3( -h_width, 0.f,    0.f ));
-    blade_vert.push_back(vec3(  h_width, height, 0.f ));
-    blade_vert.push_back(vec3( -h_width, height, 0.f ));
+    blade_vert.push_back(vec3( -half_width, 0.f,    0.f ));
+    blade_vert.push_back(vec3( half_width,  0.f,    0.f ));
+    blade_vert.push_back(vec3( half_width,  height, 0.f ));
+    blade_vert.push_back(vec3( -half_width, 0.f,    0.f ));
+    blade_vert.push_back(vec3( half_width,  height, 0.f ));
+    blade_vert.push_back(vec3( -half_width, height, 0.f ));
 
     vector<vec2> blade_uv(6);
     blade_uv.push_back(vec2( 1.f,1.f ));

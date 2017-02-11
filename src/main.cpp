@@ -139,8 +139,7 @@ int main(int, char**)
 	//setupScene();
 	auto camera = new Camera();
 
-	// Load the texture 
-	//GLuint texture = LoadTextureRAW( "texture.raw", true );
+	// Load the texture
 	GLuint textureID; 
 	Image tex_grass("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/tall-grass.png");
     glGenTextures(1, &textureID); // Generate texture ID
