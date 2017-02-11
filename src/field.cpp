@@ -3,11 +3,13 @@
 using namespace std;
 using namespace glm;
 
-
-Field::Field(int num_clusters) {
+Field::Field(){
     m_points = new vector<vec3>();
     m_uvs = new vector<vec2>();
     positions = new vector<vec3>();
+}
+
+Field::Field(int num_clusters): Field() {
 
     for (int i = 0; i < num_clusters; i++) {
         for (int j = 0; j < num_clusters; j++) {
@@ -17,7 +19,6 @@ Field::Field(int num_clusters) {
             float y = 0.f;
             
             addPatch(x,y,z);
-                    
         }
     }
 
@@ -45,8 +46,6 @@ void Field::addPatch(float x, float y, float z){
     blade_uv.push_back(vec2( 1.f,1.f ));
     blade_uv.push_back(vec2( 0.f,0.f ));
     blade_uv.push_back(vec2( 1.f,0.f ));
-
-
 
     positions->push_back(vec3(x,y,z));
     

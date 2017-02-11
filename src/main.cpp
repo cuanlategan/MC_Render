@@ -29,6 +29,8 @@
 #include "Camera.hpp"
 
 
+static const int G_WINDOW_W = 1280;
+static const int G_WINDOW_H = 720;
 glm::mat4 MVP;
 
 
@@ -55,9 +57,9 @@ int main(int, char**)
     SDL_DisplayMode current;
     SDL_GetCurrentDisplayMode(0, &current);
     SDL_Window *window = SDL_CreateWindow("ImGui SDL2+OpenGL3 example",
-											SDL_WINDOWPOS_CENTERED,
-											SDL_WINDOWPOS_CENTERED, 
-											1280, 720, 
+										  SDL_WINDOWPOS_CENTERED,
+										  SDL_WINDOWPOS_CENTERED,
+										  G_WINDOW_W, G_WINDOW_H,
 											SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     SDL_GLContext glcontext = SDL_GL_CreateContext(window);
 	SDL_GL_SetSwapInterval(0); // disable vsync, set to 1 to enable. Default: 1
@@ -229,6 +231,8 @@ int main(int, char**)
 		//setupScene();
 		camera->computeMatricesFromInputs();
 
+		int width = G_WINDOW_W;
+		int height = G_WINDOW_H;
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -237,6 +241,15 @@ int main(int, char**)
 			if (event.type == SDL_QUIT) {
 				done = true;
 			}
+			else if(event.type == SDL_WINDOWEVENT){
+				if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
+					width = event.window.data1;
+					height = event.window.data2;
+					glViewport(0, 0, float(width), float(height)); // TODO probably shouldnt be set every tick
+				}
+
+			}
+
 
         }
 
@@ -249,10 +262,10 @@ int main(int, char**)
 
 
 		// Setup display size (every frame to accommodate for window resizing)
-		int width, height;
-		SDL_GetWindowSize(window, &width, &height);
+
+		//SDL_GetWindowSize(window, &width, &height);
 		glm::mat4 Projection = glm::perspective(glm::radians(75.f), float(width)/float(height), 0.1f, 100.0f);
-		glViewport(0, 0, width, height); // TODO probably shouldnt be set every tick
+
 		//glm::mat4 Projection = camera->getProjectionMatrix();
 
 		glm::mat4 View       = camera->getViewMatrix();
