@@ -48,7 +48,6 @@ float g_zoom = 1.0;
 
 glm::mat4 MVP;
 
-WaveGenerator *g_wave_generator;
 
 void clean_up(SDL_GLContext& glcontext, SDL_Window* window);
 
@@ -62,7 +61,6 @@ int main(int, char**)
         return -1;
     }
 		
-
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -73,10 +71,15 @@ int main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_DisplayMode current;
     SDL_GetCurrentDisplayMode(0, &current);
-    SDL_Window *window = SDL_CreateWindow("ImGui SDL2+OpenGL3 example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow("ImGui SDL2+OpenGL3 example",
+											SDL_WINDOWPOS_CENTERED,
+											SDL_WINDOWPOS_CENTERED, 
+											1280, 720, 
+											SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     SDL_GLContext glcontext = SDL_GL_CreateContext(window);
-
-	// Setup opengl extension wrangler
+	SDL_GL_SetSwapInterval(0); // disable vsync, set to 1 to enable. Default: 1
+	
+	// Setup opengl extension handler
 	if (gl3wInit()) { 
 		std::cout << "failed to init GL3W" << std::endl;
 		clean_up(glcontext, window); 
@@ -85,8 +88,6 @@ int main(int, char**)
 
     // Setup ImGui binding
     ImGui_ImplSdlGL3_Init(window);
-	  
-    
     ImVec4 clear_color = ImColor(114, 144, 154);
 
 	//------------------------------------------------------------------------------------------------
@@ -175,13 +176,10 @@ int main(int, char**)
 	// Get a handle for our "myTextureSampler" uniform
 	GLuint myTextureSampler  = glGetUniformLocation(shader_program, "myTextureSampler");
 
-	// Our vertices. Tree consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
-	// A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
-	
 	//=======================================================
 	
-    Field *field = new Field();
-    field->generateCluster(GRID_DIMENSION);
+    Field *field = new Field(50);
+    
     
 	//=======================================================
 
@@ -194,11 +192,11 @@ int main(int, char**)
 	GLuint vboVertexID;
 	glGenBuffers(1, &vboVertexID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboVertexID);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-	/*glBufferData(GL_ARRAY_BUFFER, 
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER,
 					field->m_points->size() * sizeof(float) * 3,
 					field->m_points->data(), GL_DYNAMIC_DRAW);
-	*/
+
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
@@ -213,12 +211,12 @@ int main(int, char**)
 	GLuint vboUVbufferID;
 	glGenBuffers(1, &vboUVbufferID);
 	glBindBuffer(GL_ARRAY_BUFFER, vboUVbufferID);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
-	/*glBufferData(GL_ARRAY_BUFFER,
-					field->m_normals->size() * sizeof(float) * 3,
-					field->m_normals->data(),
-					GL_DYNAMIC_DRAW);
-	*/				
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER,
+					field->m_uvs->size() * sizeof(float) * 2,
+					field->m_uvs->data(),
+				    GL_STATIC_DRAW);
+
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
 		1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -272,13 +270,13 @@ int main(int, char**)
 		glm::mat4 View       = camera->getViewMatrix();
 		glm::mat4 Model      = glm::mat4(1.0f);
 
+
 		// Our ModelViewProjection : multiplication of our 3 matrices
 		MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
 		// Use our shader
 		glUseProgram(shader_program);
-		//glEnableVertexAttribArray(0);
-		//glEnableVertexAttribArray(1);
+
 
 		// Send our transformation to the currently bound shader, 
 		// in the "MVP" uniform
@@ -291,15 +289,13 @@ int main(int, char**)
 		// Set our "myTextureSampler" sampler to user Texture Unit 0
 		glUniform1i(myTextureSampler, 0);
 		
-	
-		//glEnableVertexAttribArray(0);
-		//glEnableVertexAttribArray(1);
+
 		glBindVertexArray(vaoID);
 		
 
 
 		//glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
-		glDrawArrays(GL_TRIANGLES, 0, field->m_points->size());
+		glDrawArrays(GL_TRIANGLES, 0, field->m_points->size()*3);
 		
 
 		//glDisableVertexAttribArray(0);

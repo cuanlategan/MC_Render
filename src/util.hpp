@@ -1,15 +1,5 @@
 
 
-
-
-
-const int GRID_DIMENSION = 50;
-
-
-
-
-
-
 /* A simple function that will read a file into an allocated char pointer buffer */
 char* filetobuf(char *file)
 {

@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <stdio.h>
 
 #include "Camera.hpp"
 
@@ -33,19 +34,14 @@ float speed = 0.005f; // 0.005 units / second
 float mouseSpeed = 0.005f;
 glm::vec2 mousePosition;
 
-
+int lastTime = 0;
 
 void Camera::computeMatricesFromInputs(){
-	// This is called when events are polled
-	SDL_PumpEvents();
-
-	// glfwGetTime is called only once, the first time this function is called
-	static int lastTime = SDL_GetTicks();
 
 	// Compute time difference between current and last frame
-	int currentTime = SDL_GetTicks();
+	const int currentTime = SDL_GetTicks();
 	float deltaTime = float(currentTime - lastTime);
-
+	lastTime = currentTime;
 	// Get mouse position
 	int xpos, ypos;
 	if (SDL_GetMouseState(&xpos, &ypos) & SDL_BUTTON(SDL_BUTTON_LEFT)) {
@@ -101,7 +97,7 @@ void Camera::computeMatricesFromInputs(){
 	float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 
 	// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-	ProjectionMatrix = glm::perspective(glm::radians(FoV), 4.0f / 3.0f, 0.1f, 100.0f);
+	ProjectionMatrix = glm::perspective(glm::radians(75.f), 4.0f / 3.0f, 0.1f, 100.0f);
 	// Camera matrix
 	ViewMatrix       = glm::lookAt(
 								position,           // Camera is here

@@ -1,66 +1,80 @@
-//
-// Created by cuan on 5/31/16.
-//
-
 #include "field.h"
-#include "simple_image.hpp"
-#include <GL/gl3w.h>
-#include <GL/glu.h>
+
+using namespace std;
+using namespace glm;
 
 
-
-void Field::generateCluster(int num_clusters) {
+Field::Field(int num_clusters) {
+    m_points = new vector<vec3>();
+    m_uvs = new vector<vec2>();
+    positions = new vector<vec3>();
 
     for (int i = 0; i < num_clusters; i++) {
         for (int j = 0; j < num_clusters; j++) {
 
             float x = float(i);
-            float y = float(j);
-            //float x = float(i) - num_clusters / 2;
-            //float y = float(j) - num_clusters / 2;
-            //float x = float(i) +float((rand()%100)/200.f) -num_clusters/2;
-            //float y = float(j) +float((rand()%100)/200.f) -num_clusters/2;
-            Grass grass(glm::vec3(x, y, 0.f));
-            grass_clusters->push_back(grass);
-
-
-            for (auto &point :grass.getPoints()) {
-                m_points->push_back(point);
-
-                glm::vec3 center(grass.getPosition().x*0.5,
-                                  grass.getPosition().y*0.5,
-                                  grass.getPosition().z*0.5);
-                m_centers->push_back(center);
-                m_normals->push_back(glm::vec3(0.f,1.f,0.f));
-                //std::cout << center << "\n";
-            }
-
-            for (auto &uv :grass.getUvs()) {
-                m_uvs->push_back(uv);
-            }
-            //m_centers->push_back(grass.getPosition());
-
-
+            float z = float(j);
+            float y = 0.f;
+            
+            addPatch(x,y,z);
+                    
         }
     }
-    int max_attributes = 0;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
-    std::cout << "GL_MAX_VERTEX_ATTRIBS " << max_attributes << "\n";
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
-    std::cout << "GL_MAX_VERTEX_ATTRIBS " << max_attributes << "\n";
-
-    
-
-    /*for(auto &p: *m_points){
-        std::cout << p << "\n";
-    }*/
 
 }
 
+  
+
+
+void Field::addPatch(float x, float y, float z){
+
+    const float height = 0.8f;
+    const float h_width = 0.3f;
+
+    vector<vec3> blade_vert(6);
+    blade_vert.push_back(vec3( -h_width, 0.f,    0.f ));
+    blade_vert.push_back(vec3(  h_width, 0.f,    0.f ));
+    blade_vert.push_back(vec3(  h_width, height, 0.f ));
+    blade_vert.push_back(vec3( -h_width, 0.f,    0.f ));
+    blade_vert.push_back(vec3(  h_width, height, 0.f ));
+    blade_vert.push_back(vec3( -h_width, height, 0.f ));
+
+    vector<vec2> blade_uv(6);
+    blade_uv.push_back(vec2( 1.f,1.f ));
+    blade_uv.push_back(vec2( 0.f,1.f ));
+    blade_uv.push_back(vec2( 0.f,0.f ));
+    blade_uv.push_back(vec2( 1.f,1.f ));
+    blade_uv.push_back(vec2( 0.f,0.f ));
+    blade_uv.push_back(vec2( 1.f,0.f ));
 
 
 
+    positions->push_back(vec3(x,y,z));
+    
+    for(auto v: blade_vert){
+        m_points->push_back(vec3(v.x+x, v.y+y, v.z+z));
+    }
+    for(auto v: blade_vert){
+        vec3 tmp = rotateY(v,radians(45.f));
+        m_points->push_back(vec3(tmp.x+x,tmp.y+y,tmp.z+z));
+    }
+    for(auto v: blade_vert){
+        vec3 tmp = rotateY(v,radians(-45.f));
+        m_points->push_back(vec3(tmp.x+x,tmp.y+y,tmp.z+z));
+    }
 
+    for(auto v: blade_uv){
+        m_uvs->push_back(v);
+    }
+    for(auto v: blade_uv){
+        m_uvs->push_back(v);
+    }
+    for(auto v: blade_uv){
+        m_uvs->push_back(v);
+    }
+
+    
+}
 
 
 
