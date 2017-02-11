@@ -28,23 +28,6 @@
 #include "field.h"
 #include "Camera.hpp"
 
-// Projection values
-//
-float g_fovy = 60.0;
-float g_znear = 0.005;
-float g_zfar = 100.0;
-
-glm::vec3 g_camera_eye(0.f, 0.f, 0.f);
-glm::vec3 direction(0.f,0.f,0.f);
-glm::vec3 right(0.f,0.f,0.f);
-
-// Mouse controlled Camera values
-//
-bool g_leftMouseDown = false;
-glm::vec2 g_mousePosition;
-float g_pitch = 0;
-float g_yaw = 0;
-float g_zoom = 1.0;
 
 glm::mat4 MVP;
 
@@ -265,14 +248,20 @@ int main(int, char**)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-		// Model matrix : an identity matrix (model will be at the origin)
-		glm::mat4 Projection = camera->getProjectionMatrix();
+		// Setup display size (every frame to accommodate for window resizing)
+		int width, height;
+		SDL_GetWindowSize(window, &width, &height);
+		glm::mat4 Projection = glm::perspective(glm::radians(75.f), float(width)/float(height), 0.1f, 100.0f);
+		glViewport(0, 0, width, height); // TODO probably shouldnt be set every tick
+		//glm::mat4 Projection = camera->getProjectionMatrix();
+
 		glm::mat4 View       = camera->getViewMatrix();
+		// Model matrix : an identity matrix (model will be at the origin)
 		glm::mat4 Model      = glm::mat4(1.0f);
 
 
 		// Our ModelViewProjection : multiplication of our 3 matrices
-		MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
+		MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
 		// Use our shader
 		glUseProgram(shader_program);

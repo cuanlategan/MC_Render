@@ -8,7 +8,6 @@
 
 using namespace glm;
 
-//enum Dir {FORWARDS, BACKWARDS, UP, DOWN, LEFT, RIGHT};
 
 glm::mat4 ViewMatrix;
 glm::mat4 ProjectionMatrix;
@@ -44,7 +43,7 @@ void Camera::computeMatricesFromInputs(){
 	lastTime = currentTime;
 	// Get mouse position
 	int xpos, ypos;
-	if (SDL_GetMouseState(&xpos, &ypos) & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+	if (SDL_GetMouseState(&xpos, &ypos) & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
 		int diffX = mousePosition.x - xpos;
 		int diffY = mousePosition.y - ypos;
 		horizontalAngle    += diffX *.005f;
@@ -93,6 +92,10 @@ void Camera::computeMatricesFromInputs(){
 	if (state[SDL_SCANCODE_A]){
 		position -= right * deltaTime * speed;
 	}
+
+
+
+
 
 	float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 

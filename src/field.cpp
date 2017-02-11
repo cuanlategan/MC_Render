@@ -23,7 +23,6 @@ Field::Field(int num_clusters) {
 
 }
 
-  
 
 
 void Field::addPatch(float x, float y, float z){

@@ -9,7 +9,6 @@ SET(headers
 	"simple_image.hpp"
 	"util.hpp"
 	"field.h"
-	"wave_generator.h"
 	"Camera.hpp"
 
 )
