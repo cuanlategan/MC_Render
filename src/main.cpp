@@ -242,10 +242,11 @@ int main(int, char**)
 				done = true;
 			}
 			else if(event.type == SDL_WINDOWEVENT){
+				// Setup display size to accommodate for window resizing
 				if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
 					width = event.window.data1;
 					height = event.window.data2;
-					glViewport(0, 0, float(width), float(height)); // TODO probably shouldnt be set every tick
+					glViewport(0, 0, width, height);
 				}
 
 			}
@@ -261,13 +262,7 @@ int main(int, char**)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-		// Setup display size (every frame to accommodate for window resizing)
-
-		//SDL_GetWindowSize(window, &width, &height);
 		glm::mat4 Projection = glm::perspective(glm::radians(75.f), float(width)/float(height), 0.1f, 100.0f);
-
-		//glm::mat4 Projection = camera->getProjectionMatrix();
-
 		glm::mat4 View       = camera->getViewMatrix();
 		// Model matrix : an identity matrix (model will be at the origin)
 		glm::mat4 Model      = glm::mat4(1.0f);
@@ -295,8 +290,6 @@ int main(int, char**)
 		glBindVertexArray(vaoID);
 		
 
-
-		//glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
 		glDrawArrays(GL_TRIANGLES, 0, field->m_points->size()*3);
 		
 
