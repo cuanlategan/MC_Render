@@ -20,7 +20,7 @@
 
 #include "asset_factory.h"
 #include "field.h"
-#include "Camera.hpp"
+#include "camera.h"
 
 
 static const int G_WINDOW_W = 1280;
@@ -77,11 +77,11 @@ int main(int, char**)
 															   "TextureFragmentShader.fragmentshader");
 
 
-	GLint textureID = asset_factory.createTexture("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/tall-grass3.png");
+	GLint textureID = asset_factory.createTexture("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/tall-grass.png");
 
 	// Get handles for our uniforms
-	GLuint mvpID = glGetUniformLocation(shader_program, "mvpID");
-	GLuint myTextureSampler  = glGetUniformLocation(shader_program, "myTextureSampler");
+	GLint mvpID = glGetUniformLocation(shader_program, "mvpID");
+	GLint myTextureSampler  = glGetUniformLocation(shader_program, "myTextureSampler");
 
 
 	GLint vaoID = asset_factory.createVAO(field->m_points->size() * sizeof(float) *3,

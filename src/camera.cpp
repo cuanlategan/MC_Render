@@ -3,7 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <stdio.h>
 
-#include "Camera.hpp"
+#include "camera.h"
 
 
 using namespace glm;

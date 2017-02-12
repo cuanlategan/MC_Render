@@ -7,7 +7,7 @@ SET(headers
 	"simple_image.hpp"
 	"asset_factory.h"
 	"field.h"
-	"Camera.hpp"
+		"camera.h"
 	)
 
 
@@ -17,7 +17,7 @@ SET(sources
 	"imgui_impl.cpp"
 	"asset_factory.cpp"
 	"field.cpp"
-	"Camera.cpp"
+	"camera.cpp"
 	)
 
 

@@ -1,3 +1,3 @@
 ### TODO 
 
-`Test CMakelists on linux`
+SDL2 header file folder looks funny
