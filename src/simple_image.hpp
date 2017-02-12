@@ -14,11 +14,11 @@
 
 #pragma once
 
-
-//#include <GL/glu.h>
-//#include <GL/gl3w.h> 
-
 #include <stb_image.h>
+//#include <bits/stl_vector.h>
+#include <vector>
+#include <stdexcept>
+#include <string>
 
 
 class Image {

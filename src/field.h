@@ -1,7 +1,3 @@
-//
-// Created by cuan on 5/31/16.
-//
-
 #ifndef FIELD_H
 #define FIELD_H
 #pragma once
@@ -12,8 +8,9 @@
 
 class Field {
     private:
-        void addPatch(float x, float y, float z);
-
+    GLint shader_id, tex_id, tex_sampler, vao_id, uni_id;
+    glm::mat4 model = glm::mat4(1.f);
+    void addPatch(float x, float y, float z);
     public:
         std::vector<glm::vec3>  *m_points;
         std::vector<glm::vec2> *m_uvs;
@@ -22,12 +19,15 @@ class Field {
         Field();
         Field(int num_clusters);
 
+        void attachAssetIDs(GLint shader_id, GLint tex_id, GLint tex_sampler,
+                            GLuint vba_id,   GLint uni_idi);
+        void render(glm::mat4 view_project);
+
 
 
 
 
 
 };
-
 
 #endif //FIELD_H

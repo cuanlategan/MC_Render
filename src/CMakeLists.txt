@@ -1,5 +1,3 @@
-#
-# CGRA Project
 # If you add new source files, you must list them here
 #
 
@@ -7,22 +5,20 @@
 SET(headers
 	"imgui_impl.h"
 	"simple_image.hpp"
-	"util.hpp"
+	"asset_factory.h"
 	"field.h"
 	"Camera.hpp"
-
-)
+	)
 
 
 # TODO list your source files (.cpp) here
 SET(sources
 	"main.cpp"
 	"imgui_impl.cpp"
+	"asset_factory.cpp"
 	"field.cpp"
 	"Camera.cpp"
-	
-	
-)
+	)
 
 
 

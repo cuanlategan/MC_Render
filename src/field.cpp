@@ -1,3 +1,5 @@
+#include <GL/glcorearb.h>
+#include <GL/gl3w.h>
 #include "field.h"
 
 using namespace std;
@@ -24,6 +26,44 @@ Field::Field(int num_clusters): Field() {
 
 }
 
+void Field::attachAssetIDs(GLint shader, GLint tex, GLint tex_samp, GLuint vao, GLint uni) {
+    shader_id = shader;
+    tex_id = tex;
+    tex_sampler = tex_samp;
+    vao_id = vao;
+    uni_id = uni;
+}
+
+
+void Field::render(glm::mat4 view_project){
+    // Our ModelViewProjection : multiplication of our 3 matrices
+    glm::mat4 MVP =  view_project * model; // Remember, matrix multiplication is the other way around
+
+    // Use our shader
+    glUseProgram(shader_id);
+
+
+    // Send our transformation to the currently bound shader,
+    // in the "MVP" uniform
+    glUniformMatrix4fv(uni_id, 1, GL_FALSE, &MVP[0][0]);
+
+    // Bind our texture in Texture Unit 0
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex_id);
+
+    // Set our "myTextureSampler" sampler to user Texture Unit 0
+    glUniform1i(tex_sampler, 0);
+
+
+    glBindVertexArray(vao_id);
+
+
+    glDrawArrays(GL_TRIANGLES, 0, m_points->size()*3);
+
+
+    glUseProgram(0);
+
+}
 
 
 void Field::addPatch(float x, float y, float z){

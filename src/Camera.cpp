@@ -15,9 +15,6 @@ glm::mat4 ProjectionMatrix;
 glm::mat4 Camera::getViewMatrix(){
 	return ViewMatrix;
 }
-glm::mat4 Camera::getProjectionMatrix(){
-	return ProjectionMatrix;
-}
 
 
 // Initial position : on +Z
