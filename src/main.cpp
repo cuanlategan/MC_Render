@@ -56,7 +56,7 @@ int main(int, char**)
 										  G_WINDOW_W, G_WINDOW_H,
 											SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     SDL_GLContext glcontext = SDL_GL_CreateContext(window);
-	SDL_GL_SetSwapInterval(0); // disable vsync, set to 1 to enable. Default: 1
+	SDL_GL_SetSwapInterval(1); // disable vsync, set to 1 to enable. Default: 1
 	
 	// Setup opengl extension handler
 	if (gl3wInit()) { 
@@ -72,10 +72,14 @@ int main(int, char**)
 
 	auto field = new Field(50);
 
+	GLint shader_program = asset_factory.createShaderProgram("basic_gerst_vert.glsl",
+															 "TextureFragmentShader.fragmentshader");
 
+
+/*
 	GLint shader_program = asset_factory.createShaderProgram("TransformVertexShader.vertexshader",
 															   "TextureFragmentShader.fragmentshader");
-
+*/
 
 	GLint textureID = asset_factory.createTexture("/home/cuan/ClionProjects/temp/comp308_MAC_renderer/work/res/textures/tall-grass.png");
 
@@ -101,7 +105,7 @@ int main(int, char**)
     while (!done)
     {
 
-		//setupScene();
+		// Let the camera look for keyboard changes
 		camera->computeMatricesFromInputs();
 
 		int width = G_WINDOW_W;

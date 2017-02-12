@@ -11,6 +11,18 @@ class Field {
     GLint shader_id, tex_id, tex_sampler, vao_id, uni_id;
     glm::mat4 model = glm::mat4(1.f);
     void addPatch(float x, float y, float z);
+
+
+    float wavelength = 0.5f;
+    float amplitude = 0.05f;
+    float steepnes = 0.8f;
+    float speed = 0.05f;
+    int hasTex = 1;
+    float dirX = 1.3f;
+    float dirY = 0.0f;
+    float time = 0.f;
+
+
     public:
         std::vector<glm::vec3>  *m_points;
         std::vector<glm::vec2> *m_uvs;

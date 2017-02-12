@@ -1,5 +1,6 @@
 #include <GL/glcorearb.h>
 #include <GL/gl3w.h>
+#include <SDL2/SDL_timer.h>
 #include "field.h"
 
 using namespace std;
@@ -53,6 +54,16 @@ void Field::render(glm::mat4 view_project){
 
     // Set our "myTextureSampler" sampler to user Texture Unit 0
     glUniform1i(tex_sampler, 0);
+
+
+    glUniform1f(glGetUniformLocation(shader_id, "time"), (time+=.1f)); // set time uniform in shaders
+    glUniform1f(glGetUniformLocation(shader_id, "wavelength"), wavelength);
+    glUniform1f(glGetUniformLocation(shader_id, "amplitude"), amplitude);
+    glUniform1f(glGetUniformLocation(shader_id, "steepnes"), steepnes);
+    glUniform1f(glGetUniformLocation(shader_id, "speed"), speed);
+    glUniform1i(glGetUniformLocation(shader_id, "hasTex"), 1);
+    glUniform1f(glGetUniformLocation(shader_id, "dirX"), dirX);
+    glUniform1f(glGetUniformLocation(shader_id, "dirY"), dirY);
 
 
     glBindVertexArray(vao_id);
