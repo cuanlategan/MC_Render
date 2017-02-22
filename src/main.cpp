@@ -56,7 +56,7 @@ int main(int, char**)
 										  G_WINDOW_W, G_WINDOW_H,
 											SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     SDL_GLContext glcontext = SDL_GL_CreateContext(window);
-	SDL_GL_SetSwapInterval(1); // disable vsync, set to 1 to enable. Default: 1
+	SDL_GL_SetSwapInterval(0); // disable vsync, set to 1 to enable. Default: 1
 	
 	// Setup opengl extension handler
 	if (gl3wInit()) { 
@@ -99,7 +99,6 @@ int main(int, char**)
 	auto camera = new Camera();
 
 
-
     // Main loop
     bool done = false;
     while (!done)
@@ -125,9 +124,7 @@ int main(int, char**)
 					height = event.window.data2;
 					glViewport(0, 0, width, height);
 				}
-
 			}
-
 
         }
 
