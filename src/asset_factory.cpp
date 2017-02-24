@@ -144,6 +144,10 @@ GLint AssetFactory::createTexture(char *tex_path){
                       tex.dataPointer());*/
 
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,tex.w,tex.h,0,GL_RGBA,GL_UNSIGNED_BYTE,tex.dataPointer());
+
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+
     //glGenerateMipmap(GL_TEXTURE_2D);
 
     // Setup sampling strategies
