@@ -140,16 +140,17 @@ GLint AssetFactory::createTexture(char *tex_path){
 
     glBindTexture(GL_TEXTURE_2D, textureID); // Bind it as a 2D texture
     // Finnaly, actually fill the data into our texture
-    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, tex.w, tex.h, tex.glFormat(), GL_UNSIGNED_BYTE,
-                      tex.dataPointer());
+    /*gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, tex.w, tex.h, tex.glFormat(), GL_UNSIGNED_BYTE,
+                      tex.dataPointer());*/
 
-    //glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,tex.w,tex.h,0,GL_RGBA,GL_UNSIGNED_BYTE,tex.dataPointer());
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,tex.w,tex.h,0,GL_RGBA,GL_UNSIGNED_BYTE,tex.dataPointer());
+    //glGenerateMipmap(GL_TEXTURE_2D);
 
     // Setup sampling strategies
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     return textureID;
 

@@ -1,5 +1,5 @@
 #include <GL/gl3w.h>
-#include <GL/gl.h>
+//#include <GL/gl.h>
 #include "field.h"
 
 using namespace std;
@@ -44,11 +44,9 @@ void Field::render(glm::mat4 view_project){
     glUseProgram(shader_id);
 
     glEnable(GL_DEPTH_TEST);
+
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
-    //glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    //glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-    //glBlendFunc(GL_ONE, GL_ONE);
     glBlendFunc(GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
 
     // Send our transformation to the currently bound shader,
@@ -58,6 +56,7 @@ void Field::render(glm::mat4 view_project){
     // Bind our texture in Texture Unit 0
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_id);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     // Set our "myTextureSampler" sampler to user Texture Unit 0
     glUniform1i(tex_sampler, 0);
